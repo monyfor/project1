@@ -1,0 +1,6 @@
+tf_state_bucket      = "jada-tfstate-318675980304"
+tf_lock_table        = "jada-tf-locks"
+github_owner         = "monyfor"
+github_repo          = "project1"
+gh_oidc_provider_arn = "arn:aws:iam::318675980304:oidc-provider/token.actions.githubusercontent.com"
+region               = "us-east-1"

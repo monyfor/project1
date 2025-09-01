@@ -1,0 +1,14 @@
+services:
+  nginx:
+    image: nginx:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+
+  gatus:
+    image: twinproduction/gatus:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/apps/gatus-config.yaml:/config/config.yaml:ro
