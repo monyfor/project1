@@ -1,0 +1,16 @@
+.terraform/
+*.tfstate
+*.tfstate.backup
+crash.log
+override.tf
+override.tf.json
+*.tfvars
+# Lock file is OK to commit (optional): .terraform.lock.hcl
+
+# Ansible
+*.retry
+
+# SSH keys (never commit private keys)
+*.pem
+*.key
+id_*
