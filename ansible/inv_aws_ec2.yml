@@ -1,0 +1,11 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-east-1            # <- your region
+# Start without filters to verify discovery; add filters once it works.
+filters:
+   "tag:Name": "jada-vm"
+
+# Use the instance's public IP to connect
+compose:
+  ansible_host: public_ip_address
+  ansible_user: "'ubuntu'"

@@ -12,7 +12,7 @@ on:
       - '.github/workflows/redeploy.yml'
   workflow_dispatch:
   workflow_run:
-    workflows: ["infra"]   # your Terraform workflow name
+    workflows: ["infra"]   # name of your Terraform workflow file (its 'name:')
     types: [completed]
 
 permissions:
@@ -25,15 +25,12 @@ concurrency:
 
 jobs:
   redeploy:
+    # only run after infra if it succeeded; otherwise still run for normal push/dispatch
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
-
-jobs:
-  redeploy:
     runs-on: ubuntu-latest
     env:
       ANSIBLE_INVENTORY_ENABLED: amazon.aws.aws_ec2
-      
+
     defaults:
       run:
         working-directory: ansible
@@ -44,14 +41,14 @@ jobs:
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}   # ROLE ARN, not provider ARN
           aws-region: us-east-1
 
       - name: Install Ansible + deps
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install "ansible>=9" boto3 botocore
-          ansible-galaxy collection install amazon.aws
+          ansible-galaxy collection install amazon.aws community.docker
 
       - name: Write SSH key
         run: |
@@ -60,13 +57,17 @@ jobs:
           chmod 600 ~/.ssh/ci_key
 
       - name: Check dynamic inventory
-        run: ansible-inventory -i inv_aws_ec2.yml --graph
+        run: ansible-inventory -i inv_aws_ec2.yml --graph -vvv
 
       - name: Sync files
         run: |
           ansible all -i inv_aws_ec2.yml -b -m copy \
             -a "src=files/gatus-config.yaml dest=/opt/apps/gatus-config.yaml mode=0644" \
             -e ansible_user=ubuntu -e ansible_ssh_private_key_file=~/.ssh/ci_key
+          # If compose is in repo root, also copy it:
+          # ansible all -i inv_aws_ec2.yml -b -m copy \
+          #   -a "src=../docker-compose.yml dest=/opt/apps/docker-compose.yml mode=0644" \
+          #   -e ansible_user=ubuntu -e ansible_ssh_private_key_file=~/.ssh/ci_key
 
       - name: Pull & restart stack
         run: |
