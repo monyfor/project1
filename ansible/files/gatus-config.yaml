@@ -27,10 +27,8 @@ endpoints:
     interval: 60s
     conditions:
       - "[STATUS] == 200"
-  - name: http://localhost:3001/api/health
-    url: http://localhost:3001/api/health
-    interval: 10s
-    conditions:
-      - "[STATUS] == 200"
-      - "[RESPONSE_TIME] < 500ms"
-      - "[CONTENT_TYPE] == 'application/json'"
+  - - name: Home
+      url: http://localhost/
+      interval: 10s
+      conditions:
+    - "[STATUS] == 200"
