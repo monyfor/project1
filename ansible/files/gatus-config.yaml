@@ -1,8 +1,36 @@
+# config/config.yaml
+server:
+  port: 8080
+
+storage:
+  type: sqlite
+  path: /config/data.db
+
 endpoints:
-  - name: home-page
-    url: http://localhost:80/
-    interval: 30s
+  - name: FIBA EuroBasket 2025
+    url: https://www.fiba.basketball/en/events/fiba-eurobasket-2025
+    interval: 60s
     conditions:
       - "[STATUS] == 200"
-ui:
-  title: "Jada Status"
+  - name: GitHub
+    url: https://www.github.com
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+  - name: Delfi
+    url: https://www.delfi.ee
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+  - name: Google
+    url: https://www.google.com
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+  - name: http://localhost:3001/api/health
+    url: http://localhost:3001/api/health
+    interval: 10s
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 500ms"
+      - "[CONTENT_TYPE] == 'application/json'"
