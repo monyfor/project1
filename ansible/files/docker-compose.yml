@@ -1,14 +1,10 @@
 services:
-  nginx:
-    image: nginx:latest
-    restart: unless-stopped
-    ports:
-      - "80:80"
-
   gatus:
     image: twinproduction/gatus:latest
-    restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
-      - /opt/apps/gatus-config.yaml:/config/config.yaml:ro
+      - ./gatus-config.yaml:/config/config.yaml:ro   # <— make sure this path matches
+    environment:
+      - GATUS_CONFIG_PATH=/config/config.yaml        # <— forces the path Gatus reads
+    restart: unless-stopped
