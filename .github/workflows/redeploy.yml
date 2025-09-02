@@ -1,71 +1,75 @@
-name: Redeploy (compose + gatus)
+name: redeploy
 
 on:
-  workflow_dispatch:
   push:
     branches: [ main ]
     paths:
-      - "ansible/files/**"
-      - ".github/workflows/redeploy.yml"
+      - 'ansible/files/**'
+      - 'ansible/roles/**'
+      - 'ansible/site.yml'
+      - 'docker-compose.yml'
+      - 'app/**'
+      - '.github/workflows/redeploy.yml'
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["infra"]   # your Terraform workflow name
+    types: [completed]
 
 permissions:
-  id-token: write         # for OIDC to AWS
+  id-token: write
   contents: read
-  packages: read
+
+concurrency:
+  group: redeploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   redeploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ansible
 
     steps:
       - uses: actions/checkout@v4
 
-      # 1) Configure AWS with your OIDC role (comes from infra-bootstrap)
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: us-east-1
 
-      # 2) Ansible + AWS SDKs + collections
       - name: Install Ansible + deps
         run: |
           python3 -m pip install --upgrade pip
-          pip install ansible boto3 botocore
-          ansible-galaxy collection install amazon.aws community.docker
+          python3 -m pip install "ansible>=9" boto3 botocore
+          ansible-galaxy collection install amazon.aws
 
-      # 3) Private key to SSH into the VM
       - name: Write SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/vm_key
-          chmod 600 ~/.ssh/vm_key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/ci_key
+          chmod 600 ~/.ssh/ci_key
 
-      # 4) Show dynamic inventory result (debug)
-      - name: Inventory check
-        working-directory: ansible
+      - name: Check dynamic inventory
         run: ansible-inventory -i inv_aws_ec2.yml --graph
 
-      # 5) Sync compose & Gatus config to server
-      - name: Copy files
-        working-directory: ansible
+      - name: Sync files
         run: |
-          ansible all -i inv_aws_ec2.yml -b \
-            -m copy -a "src=files/docker-compose.yml dest=/opt/apps/docker-compose.yml mode=0644"
-          ansible all -i inv_aws_ec2.yml -b \
-            -m copy -a "src=files/gatus-config.yaml dest=/opt/apps/gatus-config.yaml mode=0644"
+          ansible all -i inv_aws_ec2.yml -b -m copy \
+            -a "src=files/gatus-config.yaml dest=/opt/apps/gatus-config.yaml mode=0644" \
+            -e ansible_user=ubuntu -e ansible_ssh_private_key_file=~/.ssh/ci_key
 
-      # 6) Recreate stack (pull latest images, restart containers)
-      - name: Pull & recreate
-        working-directory: ansible
-        run: |
-          ansible all -i inv_aws_ec2.yml -b \
-            -m community.docker.docker_compose_v2 \
-            -a "project_src=/opt/apps pull=always recreate=always remove_orphans=true"
-
-      # 7) Print the remote gatus config (verification)
-      - name: Verify remote gatus config
-        working-directory: ansible
+      - name: Pull & restart stack
         run: |
           ansible all -i inv_aws_ec2.yml -b -m shell \
-            -a 'sed -n "1,80p" /opt/apps/gatus-config.yaml'
+            -a 'cd /opt/apps && docker compose pull && docker compose up -d --remove-orphans' \
+            -e ansible_user=ubuntu -e ansible_ssh_private_key_file=~/.ssh/ci_key
+
+      - name: Verify Gatus config on server (first 120 lines)
+        run: |
+          ansible all -i inv_aws_ec2.yml -b -m shell \
+            -a "sed -n '1,120p' /opt/apps/gatus-config.yaml" \
+            -e ansible_user=ubuntu -e ansible_ssh_private_key_file=~/.ssh/ci_key
