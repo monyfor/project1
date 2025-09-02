@@ -7,7 +7,7 @@ storage:
   path: /config/data.db
 
 endpoints:
-  - name: FIBA EuroBasket 2025
+  - name: FIBA EuroBasket 2026
     url: https://www.fiba.basketball/en/events/fiba-eurobasket-2025
     interval: 60s
     conditions:
