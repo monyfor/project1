@@ -1,7 +1,6 @@
-# config/config.yaml
+# ansible/files/gatus-config.yaml
 server:
   port: 8080
-
 storage:
   type: sqlite
   path: /config/data.db
@@ -12,23 +11,27 @@ endpoints:
     interval: 60s
     conditions:
       - "[STATUS] == 200"
+
   - name: GitHub
     url: https://www.github.com
     interval: 60s
     conditions:
       - "[STATUS] == 200"
+
   - name: Delfi
     url: https://www.delfi.ee
     interval: 60s
     conditions:
       - "[STATUS] == 200"
+
   - name: Google
     url: https://www.google.com
     interval: 60s
     conditions:
       - "[STATUS] == 200"
-  - - name: Home
-      url: http://localhost/
-      interval: 10s
-      conditions:
-    - "[STATUS] == 200"
+
+  - name: Home
+    url: http://localhost/
+    interval: 10s
+    conditions:
+      - "[STATUS] == 200"

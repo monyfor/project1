@@ -96,7 +96,7 @@ jobs:
       - name: Pull & restart stack
         run: |
           ansible all -i inv_aws_ec2.yml -b -m shell \
-            -a 'cd /opt/apps && docker compose pull && docker compose up -d --remove-orphans' \
+            -a 'cd /opt/apps && docker compose pull && docker compose up -d --force-recreate --remove-orphans gatus' \
             -e ansible_user=ubuntu -e ansible_ssh_private_key_file=~/.ssh/ci_key
 
       - name: Verify Gatus config on server (first 120 lines)
@@ -104,3 +104,19 @@ jobs:
           ansible all -i inv_aws_ec2.yml -b -m shell \
             -a "sed -n '1,120p' /opt/apps/gatus-config.yaml" \
             -e ansible_user=ubuntu -e ansible_ssh_private_key_file=~/.ssh/ci_key
+
+      - name: Revoke runner IP from SSH
+        if: always()
+        run: |
+          set -e
+          RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=jada-vm" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" --output text)
+          SG_ID=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+            --query "Reservations[0].Instances[0].SecurityGroups[0].GroupId" --output text)
+
+          echo "Removing SSH $RUNNER_IP from $SG_ID"
+          aws ec2 revoke-security-group-ingress \
+            --group-id "$SG_ID" --protocol tcp --port 22 --cidr "$RUNNER_IP" || true
+        shell: bash
