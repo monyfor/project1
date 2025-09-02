@@ -56,6 +56,30 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/ci_key
           chmod 600 ~/.ssh/ci_key
 
+      - name: Allow runner IP to SSH
+        run: |
+          set -e
+          RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+          echo "Runner public IP: $RUNNER_IP"
+
+          # Find the SG attached to your instance(s)
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=jada-vm" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" --output text)
+
+          SG_ID=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+            --query "Reservations[0].Instances[0].SecurityGroups[0].GroupId" --output text)
+
+          echo "Instance: $INSTANCE_ID  SG: $SG_ID"
+
+          # Add the ingress (ignore if it exists)
+          aws ec2 authorize-security-group-ingress \
+            --group-id "$SG_ID" --protocol tcp --port 22 --cidr "$RUNNER_IP" || true
+
+          echo "SSH allowed from $RUNNER_IP on $SG_ID"
+        shell: bash
+
+
       - name: Check dynamic inventory
         run: ansible-inventory -i inv_aws_ec2.yml --graph -vvv
 
