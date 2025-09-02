@@ -28,6 +28,12 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    env:
+      ANSIBLE_INVENTORY_ENABLED: amazon.aws.aws_ec2
+      
     defaults:
       run:
         working-directory: ansible
